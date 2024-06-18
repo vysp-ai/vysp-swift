@@ -9,18 +9,23 @@ enum VYSPError: Error {
     case serializationError
 }
 
-@available(macOS 12, iOS 15, watchOS 8, tvOS 15, *)
+enum VYSPInstallationType: String {
+    case cloud
+    case custom
+}
+
 class VYSPClient {
     var tenantApiKey: String
     var gateApiKey: String
-    var installationType: String
+    var installationType: VYSPInstallationType
     var baseUrl: String
 
-    init(tenantApiKey: String, gateApiKey: String, installationType: String = "cloud", installationUrl: String? = nil) {
+    init (tenantApiKey: String, gateApiKey: String, installationType: VYSPInstallationType = .cloud, installationUrl: String? = nil) {
         self.tenantApiKey = tenantApiKey
         self.gateApiKey = gateApiKey
         self.installationType = installationType
-        self.baseUrl = (installationType == "cloud") ? "https://vyspcloud.com/" : (installationUrl ?? "")
+        self.baseUrl = (installationType == .cloud) ? "https://vyspcloud.com/" : (installationUrl ?? "")
+        
     }
 
     private func sendRequest(endpoint: String, direction: String, method: String = "POST", data: [String: Any]? = nil) async throws -> Any {
@@ -36,7 +41,11 @@ class VYSPClient {
         request.addValue(direction, forHTTPHeaderField: "X-Check-Type")
 
         if let data = data {
-            request.httpBody = try JSONSerialization.data(withJSONObject: data, options: [])
+            do {
+                request.httpBody = try JSONSerialization.data(withJSONObject: data, options: [])
+            } catch {
+                throw VYSPError.serializationError
+            }
         }
 
         let (data, response) = try await URLSession.shared.data(for: request)
